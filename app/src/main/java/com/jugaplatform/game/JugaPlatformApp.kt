@@ -112,17 +112,26 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
                     val p = payload ?: RemotePayload()
                     HomeScreen(
                         payload = p,
-                        nickname = nickname,
                         loadingError = loadingError,
-                        onStart = {
-                            if (nickname.isNullOrBlank()) showNickDialog = true
-                            else {
-                                saveMsg = null
-                                gameViewModel.restartGame()
-                                screen = ScreenState.Game
+                        onAction = { button ->
+                            when (button.action) {
+                                "startgame" -> {
+                                    if (nickname.isNullOrBlank()) showNickDialog = true
+                                    else {
+                                        saveMsg = null
+                                        gameViewModel.restartGame()
+                                        screen = ScreenState.Game
+                                    }
+                                }
+
+                                "policy" -> {
+                                    val target = button.url.orEmpty()
+                                    if (target.isNotBlank()) {
+                                        screen = ScreenState.Policy(target)
+                                    }
+                                }
                             }
-                        },
-                        onPolicy = { url -> screen = ScreenState.Policy(url) }
+                        }
                     )
 
                     if (showNickDialog) {
@@ -201,10 +210,8 @@ private fun rankFor(player: String, distance: Int, board: RemoteLeaderboard): In
 @Composable
 private fun HomeScreen(
     payload: RemotePayload,
-    nickname: String?,
     loadingError: String?,
-    onStart: () -> Unit,
-    onPolicy: (String) -> Unit
+    onAction: (RemoteButton) -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFF0C1726)).padding(20.dp),
@@ -216,19 +223,16 @@ private fun HomeScreen(
             modifier = Modifier.fillMaxWidth(0.86f)
         ) {
             Text("JugaPlatform", color = Color(0xFFE0B400), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
-            Text("Jugador: ${nickname ?: "(sin nombre)"}", color = Color(0xFFD8E5F3))
             loadingError?.let { Text("Network fallback: $it", color = Color.Yellow) }
 
             Button(
-                onClick = { if (payload.ui.button1.action == "startgame") onStart() },
+                onClick = { onAction(payload.ui.button1) },
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                 shape = RoundedCornerShape(24.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF476F))
             ) { Text(payload.ui.button1.title, modifier = Modifier.padding(vertical = 12.dp)) }
 
-            TextButton(onClick = {
-                if (payload.ui.button2.action == "policy") onPolicy(payload.ui.button2.url.orEmpty())
-            }) { Text(payload.ui.button2.title) }
+            TextButton(onClick = { onAction(payload.ui.button2) }) { Text(payload.ui.button2.title) }
         }
     }
 }
