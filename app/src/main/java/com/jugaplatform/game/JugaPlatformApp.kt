@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -55,8 +56,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -359,10 +362,11 @@ private fun GamePlayCanvas(ui: GameUiState, onJump: () -> Unit, onWorldReady: (a
                 val stripeX = ((idx * 140f) - (ui.speed * 0.12f + ui.timestampMs * 0.3f) % 140f)
                 drawRoundRect(color = GroundStripe, topLeft = Offset(stripeX, groundY + (idx % 5) * 12f), size = Size(100f, 10f), cornerRadius = CornerRadius(5f))
             }
-            drawHero(ui.hero)
             ui.obstacles.forEach { drawObstacle(it) }
             ui.bonuses.forEach { drawBonus(it) }
         }
+
+        HeroSprite(hero = ui.hero)
     }
 }
 
@@ -390,15 +394,21 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCloud(cloud: Cl
     drawOval(color, Offset(cloud.x + cloud.width * 0.48f, cloud.y), Size(cloud.width * 0.52f, h))
 }
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHero(hero: HeroState) {
-    drawRoundRect(Color(0xFFEF476F), Offset(hero.x - hero.width * 0.12f, hero.y + hero.height * 0.28f), Size(hero.width * 0.4f, hero.height * 0.58f), CornerRadius(20f))
-    drawRoundRect(Color(0xFFF4D35E), Offset(hero.x, hero.y), Size(hero.width, hero.height), CornerRadius(18f))
-    drawRoundRect(Color(0xFF073B4C), Offset(hero.x + hero.width * 0.08f, hero.y + hero.height * 0.18f), Size(hero.width * 0.84f, hero.height * 0.27f), CornerRadius(14f))
-    drawCircle(Color.White, hero.width * 0.07f, Offset(hero.x + hero.width * 0.34f, hero.y + hero.height * 0.31f))
-    drawCircle(Color.White, hero.width * 0.07f, Offset(hero.x + hero.width * 0.66f, hero.y + hero.height * 0.31f))
-    val legLift = if (hero.isJumping) hero.height * 0.02f else sin(hero.animationPhase) * hero.height * 0.06f
-    drawRoundRect(Color(0xFF1D3557), Offset(hero.x + hero.width * 0.15f, hero.y + hero.height * 0.72f + legLift), Size(hero.width * 0.25f, hero.height * 0.30f), CornerRadius(8f))
-    drawRoundRect(Color(0xFF1D3557), Offset(hero.x + hero.width * 0.60f, hero.y + hero.height * 0.72f - legLift), Size(hero.width * 0.25f, hero.height * 0.30f), CornerRadius(8f))
+@Composable
+private fun HeroSprite(hero: HeroState) {
+    val density = LocalDensity.current
+    val xDp = with(density) { hero.x.toDp() }
+    val yDp = with(density) { hero.y.toDp() }
+    val widthDp = with(density) { hero.width.toDp() }
+    val heightDp = with(density) { hero.height.toDp() }
+
+    Image(
+        painter = painterResource(id = R.drawable.ic_life),
+        contentDescription = "jugador",
+        modifier = Modifier
+            .offset { IntOffset(xDp.roundToPx(), yDp.roundToPx()) }
+            .size(widthDp, heightDp)
+    )
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawObstacle(obstacle: Obstacle) {
