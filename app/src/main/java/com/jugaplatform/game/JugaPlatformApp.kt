@@ -125,7 +125,7 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
                                 }
 
                                 "policy" -> {
-                                    val target = button.url.orEmpty()
+                                    val target = resolvePolicyUrl(payload = p, clicked = button)
                                     if (target.isNotBlank()) {
                                         screen = ScreenState.Policy(target)
                                     }
@@ -205,6 +205,14 @@ private fun rankFor(player: String, distance: Int, board: RemoteLeaderboard): In
     val all = (board.history + board.best + LeaderboardItem(player, distance, "today"))
         .sortedByDescending { it.distanceM }
     return all.indexOfFirst { it.player == player && it.distanceM == distance } + 1
+}
+
+private fun resolvePolicyUrl(payload: RemotePayload, clicked: RemoteButton): String {
+    return clicked.url
+        ?.takeIf { it.isNotBlank() }
+        ?: payload.ui.button1.url?.takeIf { it.isNotBlank() }
+        ?: payload.ui.button2.url?.takeIf { it.isNotBlank() }
+        ?: "https://jugalatamgame.com/policy.php"
 }
 
 @Composable
