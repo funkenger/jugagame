@@ -140,10 +140,7 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
                 }
 
                 is ScreenState.Policy -> {
-                    PolicyScreen(
-                        url = current.url,
-                        onClose = { screen = ScreenState.Home }
-                    )
+                    PolicyScreen(url = current.url)
                 }
 
                 ScreenState.Game -> {
@@ -241,15 +238,15 @@ private fun NicknameDialog(onSave: (String) -> Unit, onDismiss: () -> Unit) {
     var value by remember { mutableStateOf("") }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Tu apodo") },
-        text = { TextField(value = value, onValueChange = { value = it }, singleLine = true, placeholder = { Text("Введите ник") }) },
+        title = { Text("Escribe tu apodo") },
+        text = { TextField(value = value, onValueChange = { value = it }, singleLine = true, placeholder = { Text("Ingresa tu apodo") }) },
         confirmButton = { TextButton(onClick = { if (value.isNotBlank()) onSave(value.trim()) }) { Text("Guardar") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
     )
 }
 
 @Composable
-private fun PolicyScreen(url: String, onClose: () -> Unit) {
+private fun PolicyScreen(url: String) {
     var loading by remember { mutableStateOf(true) }
     var uploadCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
 
@@ -258,17 +255,11 @@ private fun PolicyScreen(url: String, onClose: () -> Unit) {
         uploadCallback = null
     }
 
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Política", style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = onClose) { Text("Cerrar") }
-        }
-
-        Box(Modifier.fillMaxSize()) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    WebView(ctx).apply {
+    Box(Modifier.fillMaxSize()) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx ->
+                WebView(ctx).apply {
                         val cookie = CookieManager.getInstance()
                         cookie.setAcceptCookie(true)
                         cookie.setAcceptThirdPartyCookies(this, true)
@@ -309,12 +300,11 @@ private fun PolicyScreen(url: String, onClose: () -> Unit) {
                         loadUrl(url)
                     }
                 }
-            )
+        )
 
-            if (loading) {
-                Box(Modifier.fillMaxSize().background(Color(0x66000000)), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+        if (loading) {
+            Box(Modifier.fillMaxSize().background(Color(0x66000000)), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
         }
     }
@@ -442,16 +432,22 @@ private fun GameOverCard(
         Text("Mejor distancia: $best m", color = Color(0xFFFFE29A))
         Text("Tu lugar: #$rank", color = Color(0xFF9AE6B4), fontWeight = FontWeight.Bold)
 
+        val topPlayers = (listOf(leaderboard.best) + leaderboard.history)
+            .sortedByDescending { it.distanceM }
+            .take(5)
+
         LazyColumn(modifier = Modifier.fillMaxWidth().background(Color(0x33222A35), RoundedCornerShape(12.dp)).padding(8.dp)) {
-            items(listOf(leaderboard.best) + leaderboard.history.take(10)) { item ->
-                Text("${item.player} — ${item.distanceM} m (${item.date})", color = Color.White, style = MaterialTheme.typography.bodySmall)
+            items(topPlayers.withIndex().toList()) { indexed ->
+                val place = indexed.index + 1
+                val item = indexed.value
+                Text("#$place ${item.player} — ${item.distanceM} m (${item.date})", color = Color.White, style = MaterialTheme.typography.bodySmall)
             }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onRestart, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF476F))) { Text("Reintentar") }
             OutlinedButton(onClick = onHome) { Text("Inicio") }
-            OutlinedButton(onClick = onSaveImage) { Text("Guardar фото") }
+            OutlinedButton(onClick = onSaveImage) { Text("Guardar imagen") }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onShareFb) { Text("Share FB") }
