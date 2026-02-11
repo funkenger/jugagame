@@ -112,15 +112,8 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
                     val p = payload ?: RemotePayload()
                     HomeScreen(
                         payload = p,
-                        bestDistance = storage.bestDistance(),
                         nickname = nickname,
                         loadingError = loadingError,
-                        onShareX = {
-                            shareRecord(context, "Mi récord en JugaPlatform: ${storage.bestDistance()} m #JugaPlatform https://twitter.com/intent/tweet")
-                        },
-                        onShareFb = {
-                            shareRecord(context, "Mi récord en JugaPlatform: ${storage.bestDistance()} m https://www.facebook.com/sharer/sharer.php")
-                        },
                         onStart = {
                             if (nickname.isNullOrBlank()) showNickDialog = true
                             else {
@@ -182,6 +175,8 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
                                 leaderboard = lb,
                                 onRestart = { gameViewModel.restartGame() },
                                 onHome = { screen = ScreenState.Home },
+                                onShareX = { shareRecord(context, "Mi resultado en JugaPlatform: ${ui.distanceMeters} m #JugaPlatform") },
+                                onShareFb = { shareRecord(context, "Mi resultado en JugaPlatform: ${ui.distanceMeters} m") },
                                 onSaveImage = {
                                     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                                         filePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -209,42 +204,34 @@ private fun rankFor(player: String, distance: Int, board: RemoteLeaderboard): In
 @Composable
 private fun HomeScreen(
     payload: RemotePayload,
-    bestDistance: Int,
     nickname: String?,
     loadingError: String?,
-    onShareX: () -> Unit,
-    onShareFb: () -> Unit,
     onStart: () -> Unit,
     onPolicy: (String) -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFF0C1726)).padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentAlignment = Alignment.Center
     ) {
-        Text("JugaPlatform", color = Color(0xFFE0B400), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
-        Text("${payload.game.recordLabel}: $bestDistance m", color = Color.White, style = MaterialTheme.typography.titleMedium)
-        Text("Jugador: ${nickname ?: "(sin nombre)"}", color = Color(0xFFD8E5F3))
-        loadingError?.let { Text("Network fallback: $it", color = Color.Yellow) }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth(0.86f)
+        ) {
+            Text("JugaPlatform", color = Color(0xFFE0B400), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
+            Text("Jugador: ${nickname ?: "(sin nombre)"}", color = Color(0xFFD8E5F3))
+            loadingError?.let { Text("Network fallback: $it", color = Color.Yellow) }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onShareFb) { Text("Facebook") }
-            OutlinedButton(onClick = onShareX) { Text("Twitter/X") }
-        }
+            Button(
+                onClick = { if (payload.ui.button1.action == "startgame") onStart() },
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF476F))
+            ) { Text(payload.ui.button1.title, modifier = Modifier.padding(vertical = 12.dp)) }
 
-        Button(
-            onClick = {
-                if (payload.ui.button1.action == "startgame") onStart()
-            },
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF476F))
-        ) { Text(payload.ui.button1.title, modifier = Modifier.padding(vertical = 10.dp)) }
-
-        TextButton(onClick = {
-            if (payload.ui.button2.action == "policy") onPolicy(payload.ui.button2.url.orEmpty())
-        }) {
-            Text(payload.ui.button2.title)
+            TextButton(onClick = {
+                if (payload.ui.button2.action == "policy") onPolicy(payload.ui.button2.url.orEmpty())
+            }) { Text(payload.ui.button2.title) }
         }
     }
 }
@@ -439,6 +426,8 @@ private fun GameOverCard(
     leaderboard: RemoteLeaderboard,
     onRestart: () -> Unit,
     onHome: () -> Unit,
+    onShareX: () -> Unit,
+    onShareFb: () -> Unit,
     onSaveImage: () -> Unit,
     saveMessage: String?,
     modifier: Modifier = Modifier
@@ -463,6 +452,10 @@ private fun GameOverCard(
             Button(onClick = onRestart, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF476F))) { Text("Reintentar") }
             OutlinedButton(onClick = onHome) { Text("Inicio") }
             OutlinedButton(onClick = onSaveImage) { Text("Guardar фото") }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onShareFb) { Text("Share FB") }
+            OutlinedButton(onClick = onShareX) { Text("Share X") }
         }
         saveMessage?.let { Text(it, color = Color(0xFFBEE3F8)) }
     }

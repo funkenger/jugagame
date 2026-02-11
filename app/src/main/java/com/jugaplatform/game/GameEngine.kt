@@ -277,9 +277,11 @@ class GameViewModel : ViewModel() {
 
     private fun newCloud(startX: Float, worldHeight: Float): Cloud {
         val width = random.nextInt(70, 130).toFloat()
+        val minY = (worldHeight * 0.08f).toInt().coerceAtLeast(0)
+        val maxYExclusive = ((worldHeight * 0.32f).toInt() + 1).coerceAtLeast(minY + 1)
         return Cloud(
             x = startX,
-            y = random.nextInt((worldHeight * 0.08f).toInt(), (worldHeight * 0.32f).toInt()).toFloat(),
+            y = random.nextInt(minY, maxYExclusive).toFloat(),
             width = width,
             speedMultiplier = random.nextFloat() * 0.22f + 0.12f
         )
