@@ -23,6 +23,7 @@ private const val GROUND_HEIGHT_RATIO = 0.20f
 private const val HERO_WIDTH_RATIO = 0.09f
 private const val HERO_HEIGHT_RATIO = 0.14f
 private const val HERO_X_RATIO = 0.17f
+private const val EXTRA_LIVES_PER_RUN = 3
 
 private const val SCORE_RATE = 22f
 private const val DISTANCE_RATE = 14f
@@ -69,6 +70,7 @@ data class GameUiState(
     val bestScore: Int = 0,
     val distanceMeters: Int = 0,
     val bonusCount: Int = 0,
+    val livesLeft: Int = EXTRA_LIVES_PER_RUN,
     val isRunning: Boolean = false,
     val gameOver: Boolean = false,
     val heroName: String = "JUGADOR-MAN",
@@ -160,20 +162,20 @@ class GameViewModel : ViewModel() {
             )
         }
 
-        val newSpeed = (uiState.speed + delta * 4f).coerceAtMost(390f)
+        val movingSpeed = (uiState.speed + delta * 4f).coerceAtMost(390f)
 
-        val obstacles = uiState.obstacles
-            .map { it.copy(x = it.x - newSpeed * delta) }
+        val movedObstacles = uiState.obstacles
+            .map { it.copy(x = it.x - movingSpeed * delta) }
             .filter { it.x + it.width > 0f }
             .toMutableList()
 
-        val bonuses = uiState.bonuses
-            .map { it.copy(x = it.x - newSpeed * delta) }
+        val movedBonuses = uiState.bonuses
+            .map { it.copy(x = it.x - movingSpeed * delta) }
             .filter { it.x + it.size > 0f }
             .toMutableList()
 
         val clouds = uiState.clouds.map { cloud ->
-            val shiftedX = cloud.x - newSpeed * cloud.speedMultiplier * delta
+            val shiftedX = cloud.x - movingSpeed * cloud.speedMultiplier * delta
             if (shiftedX + cloud.width < 0f) {
                 newCloud(size.width.toFloat(), size.height.toFloat())
             } else {
@@ -181,22 +183,45 @@ class GameViewModel : ViewModel() {
             }
         }
 
-        if (obstacles.isEmpty() || obstacles.last().x < size.width - random.nextInt(360, 560)) {
-            obstacles += newObstacle(size.width.toFloat(), groundY)
+        if (movedObstacles.isEmpty() || movedObstacles.last().x < size.width - random.nextInt(360, 560)) {
+            movedObstacles += newObstacle(size.width.toFloat(), groundY)
         }
 
-        if (bonuses.isEmpty() || bonuses.last().x < size.width - random.nextInt(520, 760)) {
-            bonuses += newBonus(size.width.toFloat(), groundY)
+        if (movedBonuses.isEmpty() || movedBonuses.last().x < size.width - random.nextInt(520, 760)) {
+            movedBonuses += newBonus(size.width.toFloat(), groundY)
         }
 
         val heroRect = Rect(hero.x, hero.y, hero.x + hero.width, hero.y + hero.height)
-        val collided = obstacles.any { it.toRect().overlaps(heroRect.shrink(0.2f)) }
+        val collided = movedObstacles.any { it.toRect().overlaps(heroRect.shrink(0.2f)) }
 
         var collected = 0
-        val remainingBonuses = bonuses.filterNot { bonus ->
+        val bonusesAfterCollect = movedBonuses.filterNot { bonus ->
             val hit = bonus.toRect().overlaps(heroRect.shrink(0.08f))
             if (hit) collected += 1
             hit
+        }
+
+        var livesLeft = uiState.livesLeft
+        var gameOver = false
+        var obstaclesAfterCollision = movedObstacles
+        var bonusesAfterCollision = bonusesAfterCollect
+        var speedAfterCollision = movingSpeed
+
+        if (collided) {
+            if (livesLeft > 0) {
+                livesLeft -= 1
+                hero = hero.copy(
+                    y = groundY - hero.height,
+                    velocityY = 0f,
+                    isJumping = false,
+                    animationPhase = 0f
+                )
+                obstaclesAfterCollision = mutableListOf(newObstacle(size.width.toFloat() + 180f, groundY))
+                bonusesAfterCollision = mutableListOf(newBonus(size.width.toFloat() + 340f, groundY))
+                speedAfterCollision = BASE_GAME_SPEED
+            } else {
+                gameOver = true
+            }
         }
 
         if (!collided) {
@@ -214,13 +239,14 @@ class GameViewModel : ViewModel() {
             bestScore = bestScore,
             distanceMeters = nextDistance,
             bonusCount = totalBonuses,
+            livesLeft = livesLeft,
             hero = hero,
-            obstacles = obstacles,
-            bonuses = remainingBonuses,
+            obstacles = obstaclesAfterCollision,
+            bonuses = bonusesAfterCollision,
             clouds = clouds,
-            speed = newSpeed,
-            isRunning = !collided,
-            gameOver = collided,
+            speed = speedAfterCollision,
+            isRunning = !gameOver,
+            gameOver = gameOver,
             timestampMs = now
         )
     }
@@ -238,6 +264,7 @@ class GameViewModel : ViewModel() {
         return GameUiState(
             worldSize = size,
             bestScore = bestScore,
+            livesLeft = EXTRA_LIVES_PER_RUN,
             hero = HeroState(
                 x = width * HERO_X_RATIO,
                 y = groundY - heroHeight,

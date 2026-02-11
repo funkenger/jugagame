@@ -13,6 +13,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,6 +55,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -178,6 +181,7 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
                             distance = ui.distanceMeters,
                             cityTag = ui.cityTag,
                             bonusCount = ui.bonusCount,
+                            livesLeft = ui.livesLeft,
                             modifier = Modifier.align(Alignment.TopCenter).padding(top = 20.dp)
                         )
 
@@ -413,12 +417,30 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawBonus(bonus: Bo
 }
 
 @Composable
-private fun ScoreHud(score: Int, best: Int, distance: Int, cityTag: String, bonusCount: Int, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier.background(Color(0x4D101418), shape = RoundedCornerShape(20.dp)).padding(horizontal = 18.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+private fun ScoreHud(score: Int, best: Int, distance: Int, cityTag: String, bonusCount: Int, livesLeft: Int, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.background(Color(0x4D101418), shape = RoundedCornerShape(20.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Stat("Puntos", score.toString()); Stat("Record", "$best m"); Stat("Distancia", "$distance m"); Stat("Estrellas", bonusCount.toString()); Stat("Zona", cityTag)
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Stat("Puntos", score.toString())
+            Stat("Record", "$best m")
+            Stat("Distancia", "$distance m")
+            Stat("Estrellas", bonusCount.toString())
+            Stat("Zona", cityTag)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Vidas", color = Color.White, style = MaterialTheme.typography.labelMedium)
+            repeat(3) { idx ->
+                val active = idx < livesLeft
+                Image(
+                    painter = painterResource(id = R.drawable.ic_life),
+                    contentDescription = "vida",
+                    modifier = Modifier.size(24.dp),
+                    alpha = if (active) 1f else 0.26f
+                )
+            }
+        }
     }
 }
 

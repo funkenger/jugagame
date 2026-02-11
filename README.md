@@ -15,6 +15,7 @@
   - загружается JSON-конфиг с `https://jugalatamgame.com/json.php?...`.
 - `policy` открывается в `WebView` с cookies, JS, file chooser и круговым progress overlay.
 - `startgame` запускает игру; при первом запуске запрашивается никнейм и сохраняется.
+- Durante una partida hay 3 vidas extra (4º choque = fin del juego).
 - После смерти:
   - показывается таблица лидеров из JSON + место игрока,
   - можно сохранить картинку с результатом в галерею.
