@@ -9,6 +9,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -40,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -65,12 +67,10 @@ private val GroundColor = Color(0xFF5A3623)
 private val GroundStripe = Color(0xFF8B4F2C)
 private val SunColor = Color(0xFFFFD27F)
 
-private sealed class ScreenState {
-    data object Loading : ScreenState()
-    data object Home : ScreenState()
-    data class Policy(val url: String) : ScreenState()
-    data object Game : ScreenState()
-}
+private const val SCREEN_LOADING = "loading"
+private const val SCREEN_HOME = "home"
+private const val SCREEN_POLICY = "policy"
+private const val SCREEN_GAME = "game"
 
 @Composable
 fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
@@ -79,7 +79,8 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
     val scope = rememberCoroutineScope()
 
     var payload by remember { mutableStateOf<RemotePayload?>(null) }
-    var screen by remember { mutableStateOf<ScreenState>(ScreenState.Loading) }
+    var screen by rememberSaveable { mutableStateOf(SCREEN_LOADING) }
+    var policyUrl by rememberSaveable { mutableStateOf("") }
     var loadingError by remember { mutableStateOf<String?>(null) }
     var nickname by remember { mutableStateOf(storage.nickname()) }
     var showNickDialog by remember { mutableStateOf(false) }
@@ -90,25 +91,33 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
     ) { }
 
     LaunchedEffect(Unit) {
-        val uuid = storage.getOrCreateUuid()
-        val referrer = fetchInstallReferrer(context)
-        storage.saveInstallReferrer(referrer)
-        payload = runCatching { loadRemotePayload(referrer, uuid) }
-            .onFailure { loadingError = it.message }
-            .getOrNull() ?: RemotePayload()
-        screen = ScreenState.Home
+        if (payload == null) {
+            val uuid = storage.getOrCreateUuid()
+            val referrer = fetchInstallReferrer(context)
+            storage.saveInstallReferrer(referrer)
+            payload = runCatching { loadRemotePayload(referrer, uuid) }
+                .onFailure { loadingError = it.message }
+                .getOrNull() ?: RemotePayload()
+        }
+        if (screen == SCREEN_LOADING) {
+            screen = SCREEN_HOME
+        }
     }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            when (val current = screen) {
-                ScreenState.Loading -> {
+            BackHandler(enabled = screen != SCREEN_HOME) {
+                screen = SCREEN_HOME
+            }
+
+            when (screen) {
+                SCREEN_LOADING -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 }
 
-                ScreenState.Home -> {
+                SCREEN_HOME -> {
                     val p = payload ?: RemotePayload()
                     HomeScreen(
                         payload = p,
@@ -120,14 +129,15 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
                                     else {
                                         saveMsg = null
                                         gameViewModel.restartGame()
-                                        screen = ScreenState.Game
+                                        screen = SCREEN_GAME
                                     }
                                 }
 
                                 "policy" -> {
                                     val target = resolvePolicyUrl(payload = p, clicked = button)
                                     if (target.isNotBlank()) {
-                                        screen = ScreenState.Policy(target)
+                                        policyUrl = target
+                                        screen = SCREEN_POLICY
                                     }
                                 }
                             }
@@ -141,18 +151,18 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
                                 nickname = it
                                 showNickDialog = false
                                 gameViewModel.restartGame()
-                                screen = ScreenState.Game
+                                screen = SCREEN_GAME
                             },
                             onDismiss = { showNickDialog = false }
                         )
                     }
                 }
 
-                is ScreenState.Policy -> {
-                    PolicyScreen(url = current.url)
+                SCREEN_POLICY -> {
+                    PolicyScreen(url = policyUrl)
                 }
 
-                ScreenState.Game -> {
+                SCREEN_GAME -> {
                     val ui = gameViewModel.uiState
                     val lb = payload?.leaderboard ?: RemoteLeaderboard()
 
@@ -180,7 +190,7 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
                                 rank = rank,
                                 leaderboard = lb,
                                 onRestart = { gameViewModel.restartGame() },
-                                onHome = { screen = ScreenState.Home },
+                                onHome = { screen = SCREEN_HOME },
                                 onShareX = { shareRecord(context, "Mi resultado en JugaPlatform: ${ui.distanceMeters} m #JugaPlatform") },
                                 onShareFb = { shareRecord(context, "Mi resultado en JugaPlatform: ${ui.distanceMeters} m") },
                                 onSaveImage = {
@@ -230,7 +240,7 @@ private fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxWidth(0.86f)
         ) {
-            Text("JugaPlatform", color = Color(0xFFE0B400), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
+            Text(payload.game.name, color = Color(0xFFE0B400), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
             loadingError?.let { Text("Network fallback: $it", color = Color.Yellow) }
 
             Button(
