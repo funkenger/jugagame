@@ -1,4 +1,4 @@
-package com.jugaplatform.game
+package com.jugaplatform
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

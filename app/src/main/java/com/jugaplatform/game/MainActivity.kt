@@ -1,4 +1,4 @@
-package com.jugaplatform.game
+package com.jugaplatform
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -9,8 +9,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent {
-            JugaPlatformApp()
-        }
+        setContent { JugaPlatformApp() }
     }
 }
