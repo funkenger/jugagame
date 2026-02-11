@@ -66,7 +66,7 @@ dependencies {
 
     implementation("androidx.webkit:webkit:1.11.0")
     implementation("com.android.installreferrer:installreferrer:2.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
