@@ -67,6 +67,7 @@ fun JugaPlatformApp(gameViewModel: GameViewModel = viewModel()) {
                     best = ui.bestScore,
                     distance = ui.distanceMeters,
                     cityTag = ui.cityTag,
+                    bonusCount = ui.bonusCount,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 26.dp)
@@ -134,6 +135,7 @@ private fun GameScene(ui: GameUiState) {
 
         drawHero(ui.hero)
         ui.obstacles.forEach { obstacle -> drawObstacle(obstacle) }
+        ui.bonuses.forEach { bonus -> drawBonus(bonus) }
     }
 }
 
@@ -258,30 +260,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawObstacle(obstac
             )
         }
 
-        ObstacleType.LLAMA -> {
-            drawRoundRect(
-                color = Color(0xFFD9B08C),
-                topLeft = Offset(obstacle.x, obstacle.y + obstacle.height * 0.2f),
-                size = Size(obstacle.width, obstacle.height * 0.55f),
-                cornerRadius = CornerRadius(22f)
-            )
-            drawRoundRect(
-                color = Color(0xFFEAC4A4),
-                topLeft = Offset(obstacle.x + obstacle.width * 0.62f, obstacle.y),
-                size = Size(obstacle.width * 0.22f, obstacle.height * 0.4f),
-                cornerRadius = CornerRadius(20f)
-            )
-            repeat(2) { idx ->
-                drawRoundRect(
-                    color = Color(0xFF9C6644),
-                    topLeft = Offset(obstacle.x + obstacle.width * (0.17f + idx * 0.47f), obstacle.y + obstacle.height * 0.6f),
-                    size = Size(obstacle.width * 0.10f, obstacle.height * 0.40f),
-                    cornerRadius = CornerRadius(8f)
-                )
-            }
-        }
-
-        ObstacleType.BARRICADE -> {
+        ObstacleType.BOX -> {
             drawRoundRect(
                 color = Color(0xFF9C6644),
                 topLeft = Offset(obstacle.x, obstacle.y),
@@ -298,8 +277,23 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawObstacle(obstac
     }
 }
 
+
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawBonus(bonus: Bonus) {
+    drawCircle(
+        color = Color(0xFFFFD166),
+        radius = bonus.size * 0.5f,
+        center = Offset(bonus.x + bonus.size * 0.5f, bonus.y + bonus.size * 0.5f)
+    )
+    drawCircle(
+        color = Color(0xFFFFF1B0),
+        radius = bonus.size * 0.22f,
+        center = Offset(bonus.x + bonus.size * 0.5f, bonus.y + bonus.size * 0.5f)
+    )
+}
+
 @Composable
-private fun ScoreHud(score: Int, best: Int, distance: Int, cityTag: String, modifier: Modifier = Modifier) {
+private fun ScoreHud(score: Int, best: Int, distance: Int, cityTag: String, bonusCount: Int, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .background(Color(0x4D101418), shape = RoundedCornerShape(20.dp))
@@ -309,6 +303,7 @@ private fun ScoreHud(score: Int, best: Int, distance: Int, cityTag: String, modi
         Stat("Puntos", score.toString())
         Stat("Record", best.toString())
         Stat("Distancia", "$distance m")
+        Stat("Estrellas", bonusCount.toString())
         Stat("Zona", cityTag)
     }
 }
@@ -333,7 +328,7 @@ private fun IntroCard(heroName: String, modifier: Modifier = Modifier) {
         Text(text = "JugaPlatform", color = Color(0xFFF4D35E), style = MaterialTheme.typography.headlineSmall)
         Text(text = "Héroe: $heroName", color = Color.White)
         Text(text = "Tap para empezar y saltar.", color = Color(0xFFD9E6F2))
-        Text(text = "Evita cactus, llamas y barricadas.", color = Color(0xFFD9E6F2))
+        Text(text = "Evita obstáculos y recoge estrellas.", color = Color(0xFFD9E6F2))
     }
 }
 

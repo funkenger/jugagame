@@ -1,11 +1,12 @@
 package com.jugaplatform.game
 
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -15,18 +16,20 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.random.Random
 
-private const val BASE_GAME_SPEED = 420f
-private const val GRAVITY = 2300f
-private const val JUMP_FORCE = 980f
+private const val BASE_GAME_SPEED = 250f
+private const val GRAVITY = 1700f
+private const val JUMP_FORCE = 760f
 private const val GROUND_HEIGHT_RATIO = 0.20f
-private const val HERO_WIDTH_RATIO = 0.08f
-private const val HERO_HEIGHT_RATIO = 0.13f
-private const val HERO_X_RATIO = 0.18f
+private const val HERO_WIDTH_RATIO = 0.09f
+private const val HERO_HEIGHT_RATIO = 0.14f
+private const val HERO_X_RATIO = 0.17f
+
+private const val SCORE_RATE = 22f
+private const val DISTANCE_RATE = 14f
 
 enum class ObstacleType {
     CACTUS,
-    LLAMA,
-    BARRICADE
+    BOX
 }
 
 data class Obstacle(
@@ -34,8 +37,13 @@ data class Obstacle(
     val y: Float,
     val width: Float,
     val height: Float,
-    val type: ObstacleType,
-    val tintSeed: Int
+    val type: ObstacleType
+)
+
+data class Bonus(
+    val x: Float,
+    val y: Float,
+    val size: Float
 )
 
 data class Cloud(
@@ -60,12 +68,14 @@ data class GameUiState(
     val score: Int = 0,
     val bestScore: Int = 0,
     val distanceMeters: Int = 0,
+    val bonusCount: Int = 0,
     val isRunning: Boolean = false,
     val gameOver: Boolean = false,
     val heroName: String = "JUGADOR-MAN",
-    val cityTag: String = "Ruta Andina",
+    val cityTag: String = "Ruta Alegre",
     val hero: HeroState = HeroState(0f, 0f, 0f, 0f, 0f, false, 0f),
     val obstacles: List<Obstacle> = emptyList(),
+    val bonuses: List<Bonus> = emptyList(),
     val clouds: List<Cloud> = emptyList(),
     val speed: Float = BASE_GAME_SPEED,
     val timestampMs: Long = 0L
@@ -75,6 +85,9 @@ class GameViewModel : ViewModel() {
 
     private var loopJob: Job? = null
     private val random = Random(System.currentTimeMillis())
+
+    private var scoreFloat = 0f
+    private var distanceFloat = 0f
 
     var uiState by mutableStateOf(GameUiState())
         private set
@@ -86,8 +99,7 @@ class GameViewModel : ViewModel() {
     }
 
     fun startGame() {
-        if (uiState.worldSize == IntSize.Zero) return
-        if (uiState.isRunning) return
+        if (uiState.worldSize == IntSize.Zero || uiState.isRunning) return
         uiState = initialState(uiState.worldSize, uiState.bestScore).copy(isRunning = true)
         runLoop()
     }
@@ -115,7 +127,7 @@ class GameViewModel : ViewModel() {
             var previousTime = System.currentTimeMillis()
             while (isActive && uiState.isRunning) {
                 val now = System.currentTimeMillis()
-                val delta = ((now - previousTime).coerceAtLeast(8L)) / 1000f
+                val delta = ((now - previousTime).coerceAtLeast(8L)).coerceAtMost(40L) / 1000f
                 previousTime = now
                 tick(delta, now)
                 delay(16)
@@ -132,32 +144,36 @@ class GameViewModel : ViewModel() {
 
         val nextVelocity = hero.velocityY + GRAVITY * delta
         val nextY = hero.y + nextVelocity * delta
-        val heroBottom = nextY + hero.height
-
-        hero = if (heroBottom >= groundY) {
+        hero = if (nextY + hero.height >= groundY) {
             hero.copy(
                 y = groundY - hero.height,
                 velocityY = 0f,
                 isJumping = false,
-                animationPhase = hero.animationPhase + delta * 9f
+                animationPhase = hero.animationPhase + delta * 7f
             )
         } else {
             hero.copy(
                 y = nextY,
                 velocityY = nextVelocity,
                 isJumping = true,
-                animationPhase = hero.animationPhase + delta * 5f
+                animationPhase = hero.animationPhase + delta * 4f
             )
         }
 
-        val speedGain = uiState.speed + delta * 7f
-        val movedObstacles = uiState.obstacles
-            .map { obstacle -> obstacle.copy(x = obstacle.x - speedGain * delta) }
-            .filter { it.x + it.width > -8f }
+        val newSpeed = (uiState.speed + delta * 4f).coerceAtMost(390f)
+
+        val obstacles = uiState.obstacles
+            .map { it.copy(x = it.x - newSpeed * delta) }
+            .filter { it.x + it.width > 0f }
             .toMutableList()
 
-        val movedClouds = uiState.clouds.map { cloud ->
-            val shiftedX = cloud.x - speedGain * cloud.speedMultiplier * delta
+        val bonuses = uiState.bonuses
+            .map { it.copy(x = it.x - newSpeed * delta) }
+            .filter { it.x + it.size > 0f }
+            .toMutableList()
+
+        val clouds = uiState.clouds.map { cloud ->
+            val shiftedX = cloud.x - newSpeed * cloud.speedMultiplier * delta
             if (shiftedX + cloud.width < 0f) {
                 newCloud(size.width.toFloat(), size.height.toFloat())
             } else {
@@ -165,27 +181,44 @@ class GameViewModel : ViewModel() {
             }
         }
 
-        val shouldSpawnObstacle = movedObstacles.isEmpty() ||
-            movedObstacles.last().x < size.width - random.nextInt(240, 510)
+        if (obstacles.isEmpty() || obstacles.last().x < size.width - random.nextInt(360, 560)) {
+            obstacles += newObstacle(size.width.toFloat(), groundY)
+        }
 
-        if (shouldSpawnObstacle) {
-            movedObstacles += newObstacle(size.width.toFloat(), groundY)
+        if (bonuses.isEmpty() || bonuses.last().x < size.width - random.nextInt(520, 760)) {
+            bonuses += newBonus(size.width.toFloat(), groundY)
         }
 
         val heroRect = Rect(hero.x, hero.y, hero.x + hero.width, hero.y + hero.height)
-        val collided = movedObstacles.any { it.toRect().overlaps(heroRect.shrink(0.18f)) }
+        val collided = obstacles.any { it.toRect().overlaps(heroRect.shrink(0.2f)) }
 
-        val nextScore = if (collided) uiState.score else uiState.score + (delta * 28f).toInt()
-        val best = max(uiState.bestScore, nextScore)
+        var collected = 0
+        val remainingBonuses = bonuses.filterNot { bonus ->
+            val hit = bonus.toRect().overlaps(heroRect.shrink(0.08f))
+            if (hit) collected += 1
+            hit
+        }
+
+        if (!collided) {
+            scoreFloat += delta * SCORE_RATE + collected * 7f
+            distanceFloat += delta * DISTANCE_RATE
+        }
+
+        val nextScore = scoreFloat.toInt()
+        val nextDistance = distanceFloat.toInt()
+        val totalBonuses = uiState.bonusCount + collected
+        val bestScore = max(uiState.bestScore, nextScore)
 
         uiState = uiState.copy(
             score = nextScore,
-            bestScore = best,
-            distanceMeters = (nextScore * 1.75f).toInt(),
+            bestScore = bestScore,
+            distanceMeters = nextDistance,
+            bonusCount = totalBonuses,
             hero = hero,
-            obstacles = movedObstacles,
-            clouds = movedClouds,
-            speed = speedGain,
+            obstacles = obstacles,
+            bonuses = remainingBonuses,
+            clouds = clouds,
+            speed = newSpeed,
             isRunning = !collided,
             gameOver = collided,
             timestampMs = now
@@ -198,6 +231,9 @@ class GameViewModel : ViewModel() {
         val groundY = height * (1f - GROUND_HEIGHT_RATIO)
         val heroWidth = width * HERO_WIDTH_RATIO
         val heroHeight = height * HERO_HEIGHT_RATIO
+
+        scoreFloat = 0f
+        distanceFloat = 0f
 
         return GameUiState(
             worldSize = size,
@@ -214,51 +250,51 @@ class GameViewModel : ViewModel() {
             clouds = List(4) { idx ->
                 newCloud((width / 4f) * idx + random.nextFloat() * 100f, height)
             },
-            obstacles = listOf(newObstacle(width + 120f, groundY)),
-            cityTag = listOf("Valle del Sol", "Ruta Andina", "Costa Alegre", "Ciudad Jaguar").random(random)
+            obstacles = listOf(newObstacle(width + 140f, groundY)),
+            bonuses = listOf(newBonus(width + 280f, groundY)),
+            cityTag = listOf("Ruta Alegre", "Campo Feliz", "Costa Suave", "Valle Tranquilo").random(random)
         )
     }
 
     private fun newObstacle(startX: Float, groundY: Float): Obstacle {
-        return when (random.nextInt(0, 3)) {
-            0 -> {
-                val width = random.nextInt(34, 52).toFloat()
-                val height = random.nextInt(72, 118).toFloat()
-                Obstacle(startX, groundY - height, width, height, ObstacleType.CACTUS, random.nextInt())
-            }
-
-            1 -> {
-                val width = random.nextInt(62, 90).toFloat()
-                val height = random.nextInt(58, 85).toFloat()
-                Obstacle(startX, groundY - height, width, height, ObstacleType.LLAMA, random.nextInt())
-            }
-
-            else -> {
-                val width = random.nextInt(76, 130).toFloat()
-                val height = random.nextInt(40, 68).toFloat()
-                Obstacle(startX, groundY - height, width, height, ObstacleType.BARRICADE, random.nextInt())
-            }
+        return if (random.nextBoolean()) {
+            val width = random.nextInt(28, 42).toFloat()
+            val height = random.nextInt(54, 82).toFloat()
+            Obstacle(startX, groundY - height, width, height, ObstacleType.CACTUS)
+        } else {
+            val width = random.nextInt(44, 66).toFloat()
+            val height = random.nextInt(30, 44).toFloat()
+            Obstacle(startX, groundY - height, width, height, ObstacleType.BOX)
         }
     }
 
+    private fun newBonus(startX: Float, groundY: Float): Bonus {
+        val size = random.nextInt(20, 30).toFloat()
+        val minY = groundY - 150f
+        val maxY = groundY - 70f
+        return Bonus(startX, random.nextFloat() * (maxY - minY) + minY, size)
+    }
+
     private fun newCloud(startX: Float, worldHeight: Float): Cloud {
-        val width = random.nextInt(70, 140).toFloat()
+        val width = random.nextInt(70, 130).toFloat()
         return Cloud(
             x = startX,
-            y = random.nextInt((worldHeight * 0.05f).toInt(), (worldHeight * 0.35f).toInt()).toFloat(),
+            y = random.nextInt((worldHeight * 0.08f).toInt(), (worldHeight * 0.32f).toInt()).toFloat(),
             width = width,
-            speedMultiplier = random.nextFloat() * 0.35f + 0.15f
+            speedMultiplier = random.nextFloat() * 0.22f + 0.12f
         )
     }
 }
 
 private fun Obstacle.toRect(): Rect = Rect(x, y, x + width, y + height)
 
+private fun Bonus.toRect(): Rect = Rect(x, y, x + size, y + size)
+
 private fun Rect.shrink(amountRatio: Float): Rect {
     val dx = width * amountRatio
     val dy = height * amountRatio
     return Rect(
         offset = Offset(left + dx, top + dy),
-        size = androidx.compose.ui.geometry.Size(width - dx * 2f, height - dy * 2f)
+        size = Size(width - dx * 2f, height - dy * 2f)
     )
 }
