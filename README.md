@@ -25,3 +25,15 @@
 - OkHttp + Kotlin Serialization.
 - Google Play Install Referrer API.
 - Android WebView / AndroidX WebKit.
+
+## Web + App Links (jugalatamgame.com)
+
+В репозитории добавлены файлы для сайта:
+
+- `website/index.html` — испанская лендинг-страница игры.
+- `website/styles.css` — стили страницы.
+- `website/.well-known/assetlinks.json` — Digital Asset Links для Android App Links.
+
+Важно: в `assetlinks.json` нужно заменить значение
+`REEMPLAZA_ESTE_SHA256_CON_TU_CERTIFICADO_DE_PRODUCCION`
+на SHA-256 fingerprint сертификата, которым подписан релиз APK/AAB.
