@@ -1,0 +1,40 @@
+# JugaPlatform
+
+Лёгкая endless-runner игра на Android (Kotlin + Jetpack Compose) в латиноамериканском стиле.
+
+## Что реализовано
+
+- Главный экран до старта игры:
+  - логотип **JugaPlatform**,
+  - личный рекорд (дистанция),
+  - share-кнопки для соцсетей,
+  - большая кнопка старта и маленькая кнопка политики.
+- Перед показом кнопок:
+  - запрашивается `installReferrer`,
+  - генерируется и сохраняется `uuid` (client id),
+  - загружается JSON-конфиг с `https://jugalatamgame.com/json.php?...`.
+- `policy` открывается в `WebView` с cookies, JS, file chooser и круговым progress overlay.
+- `startgame` запускает игру; при первом запуске запрашивается никнейм и сохраняется.
+- Durante una partida hay 3 vidas extra (4º choque = fin del juego).
+- После смерти:
+  - показывается таблица лидеров из JSON + место игрока,
+  - можно сохранить картинку с результатом в галерею.
+
+## Технологии
+
+- Kotlin, Jetpack Compose, Canvas rendering.
+- OkHttp + Kotlin Serialization.
+- Google Play Install Referrer API.
+- Android WebView / AndroidX WebKit.
+
+## Web + App Links (jugalatamgame.com)
+
+В репозитории добавлены файлы для сайта:
+
+- `website/index.html` — испанская лендинг-страница игры.
+- `website/styles.css` — стили страницы.
+- `website/.well-known/assetlinks.json` — Digital Asset Links для Android App Links.
+
+Важно: в `assetlinks.json` нужно заменить значение
+`REEMPLAZA_ESTE_SHA256_CON_TU_CERTIFICADO_DE_PRODUCCION`
+на SHA-256 fingerprint сертификата, которым подписан релиз APK/AAB.
